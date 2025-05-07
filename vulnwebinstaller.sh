@@ -1,11 +1,19 @@
-#!/bin/bash/env
+#!/usr/bin/env bash
 #made by shooterman666 aka Fujikawa Shinichi
 #ini adalah script untuk membantu anda dalam instalasi web vulnerability untuk keperluan pentesting
 #dan juga untuk keperluan belajar
 #langsung saja mulai
 
 set -euo pipefail
-#fungsi untuk mendeteksi distro
+
+#Warna
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+CYAN='\033[0;36m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
+
+#Deteksi Distro
 detect_distro() {
     if [ -f /etc/os-release ]; then
         . /etc/os-release
@@ -15,198 +23,167 @@ detect_distro() {
     fi
 }
 
-#fungsi untuk instalasi docker engine 
+#Install Docker Engine
 install_docker() {
     local distro=$1
-    case $distro in
+    echo -e "${GREEN}[+] Instalasi Docker Engine untuk ${distro}...${NC}"
+    sleep 1
+
+    case "$distro" in
         ubuntu|debian|linuxmint|pop|kali|parrot)
-            echo -e "${GREEN}[+] melanjutkan instalasi docker engine...${NC}"
-            sleep 1
             sudo apt update && sudo apt install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
             ;;
         centos|fedora|rhel)
-            echo -e "${GREEN}[+] melanjutkan instalasi docker engine...${NC}"
-            sleep 1
             sudo dnf update -y && sudo dnf install -y docker
             ;;
         arch|manjaro|blackarch)
-            echo -e "${GREEN}[+] melanjutkan instalasi docker engine...${NC}"
-            sleep 1
-            sudo pacman -Syu --noconfirm && sudo pacman -S --noconfirm docker
+            sudo pacman -Syu --noconfirm docker
             ;;
         *)
-            echo "distro tidak dikenali. tolong laporkan distro apa yang anda pakai pada laman github
-            www.github/com/shooterman666/vulnlabsetup."
+            echo -e "${RED}Distro tidak dikenali.${NC}"
+            echo "Laporkan di: github.com/shooterman666/vulnlabsetup"
             exit 1
             ;;
     esac
 }
 
-#fungsi untuk mengecek apakah docker sudah terinstall
+#Cek dan install docker jika perlu
 check_docker() {
+    local distro
+    distro=$(detect_distro)
     if ! command -v docker &> /dev/null; then
-        echo -e "${GREEN}[+] docker tidak ditemukan. mengunduh dan menginstal dependency...${NC}"
-        sleep 1
-        install_docker "$1"
+        echo -e "${YELLOW}[!] Docker tidak ditemukan. Menginstal...${NC}"
+        install_docker "$distro"
     else
-        echo -e "${GREEN}[+] docker telah ditemukan. melanjutkan ke proses selanjutnya...${NC}"
-        sleep 1
-        exit 1
+        echo -e "${GREEN}[+] Docker sudah terpasang.${NC}"
     fi
 }
 
-#fugsi menu
-menu() { echo -e "${YELLOW}Pilih Menu:${NC}"
+#Menu
+menu() {
+    echo -e "${YELLOW}Pilih Menu:${NC}"
     echo " 1) Instalasi Web Vulnerability Apps"
     echo " 2) Jalankan Aplikasi"
     echo " 3) Hentikan Aplikasi"
     echo " 4) Status Aplikasi"
-    echo " 5) Bersihkan Instalasi"
+    echo " 5) Bersihkan (hapus) Aplikasi"
     echo " 6) Tambah Aplikasi Baru"
     echo " 7) Dokumentasi"
     echo " 8) Keluar"
     echo ""
 }
 
-#instalasi vulnerable web apps
+#Fungsi Instalasi Web Apps
 webInstall() {
     echo -e "${GREEN}[+] Memulai instalasi aplikasi web...${NC}"
     sleep 1
-    echo -e "${GREEN}[+] Silahkan pilih web vulnerable yang ada...${NC}"
+    echo -e "${CYAN}Pilih aplikasi:${NC}"
     echo " 1) DVWA"
     echo " 2) bWAPP"
     echo " 3) OWASP Juice Shop"
     echo " 4) WebGoat"
-    echo " 5) jika aplikasi yang anda inginkan tidak ada silahkan gunakan opsi tambah aplikasi baru"
+    echo " 5) Kembali ke menu utama"
     echo ""
-    read -p "Pilih aplikasi (1-5): " app_choice
-    case $app_choice in
-        1)
-            echo -e "${GREEN}[+] Menginstal DVWA...${NC}"
-            sleep 1
-            port=
-            nama=""
-            read -p "Masukkan port yang ingin digunakan (default 80): "
-            read -p "Masukkan nama untuk container (default dvwa): "
-            docker run -d -p $port:80 --name $name vulnerables/web-dvwa
-            ;;
-        2)
-            echo -e "${GREEN}[+] Menginstal bWAPP...${NC}"
-            sleep 1
-            port=
-            nama=""
-            read -p "Masukkan port yang ingin digunakan (default 80): "
-            read -p "Masukkan nama untuk container (default dvwa): "
-            docker run -d -p $port:80 --name $name hackersploit/bwapp-docker
-            ;;
-        3)
-            echo -e "${GREEN}[+] Menginstal OWASP Juice Shop...${NC}"
-            sleep 1
-            port=
-            nama=""
-            read -p "Masukkan port yang ingin digunakan (default 80): "
-            read -p "Masukkan nama untuk container (default dvwa): "
-            docker run -d -p $port:3000 --name $name bkimminich/juice-shop
-            ;;
-        4)
-            echo -e "${GREEN}[+] Menginstal WebGoat...${NC}"
-            sleep 1
-            port=
-            nama=""
-            read -p "Masukkan port yang ingin digunakan (default 80): "
-            read -p "Masukkan nama untuk container (default dvwa): "
-            docker run -d -p $port:8080 --name $name webgoat/webgoat
-            ;;
-        *)
-            echo "Pilihan tidak valid. Silakan coba lagi."
-            ;;
+    read -p "Pilihan (1-5): " app_choice
+
+    [[ ! "$app_choice" =~ ^[1-5]$ ]] && { echo -e "${RED}Pilihan tidak valid!${NC}"; return; }
+
+    # default values
+    local port name image
+    case "$app_choice" in
+        1) image="vulnerables/web-dvwa"; default_port=80; default_name="dvwa" ;;
+        2) image="hackersploit/bwapp-docker"; default_port=80; default_name="bwapp" ;;
+        3) image="bkimminich/juice-shop"; default_port=3000; default_name="juice-shop" ;;
+        4) image="webgoat/webgoat"; default_port=8080; default_name="webgoat" ;;
+        5) return ;;
     esac
-    echo -e "${GREEN}[+] Instalasi aplikasi web selesai.${NC}"
-    echo -e "${GREEN}[+] Anda dapat mengakses aplikasi di http://localhost:$port${NC}"
+
+    read -p "Port (default ${default_port}): " port
+    port=${port:-$default_port}
+
+    read -p "Nama container (default ${default_name}): " name
+    name=${name:-$default_name}
+
+    echo -e "${GREEN}[+] Menarik image dan menjalankan ${name}...${NC}"
+    docker run -d -p "${port}:80" --name "${name}" "${image}"
+
+    echo -e "${GREEN}[+] Selesai! Akses di: http://localhost:${port}${NC}"
 }
 
+#Fungsi Jalankan Aplikasi
 jalankanAplikasi() {
-    read -p "Masukkan nama aplikasi yang ingin dijalankan: " app_name
+    read -p "Nama container yang ingin dijalankan: " app_name
     if [ -z "$app_name" ]; then
-        echo "Nama aplikasi tidak boleh kosong."
+        echo -e "${RED}Nama tidak boleh kosong!${NC}"
         return
-    fi 
-    docker start $app_name
+    fi
+    docker start "$app_name" && echo -e "${GREEN}[+] ${app_name} dijalankan.${NC}"
 }
 
+#Fungsi Hentikan Aplikasi
 hentikanAplikasi() {
-    read -p "Masukkan nama aplikasi yang ingin dijalankan: " app_name
+    read -p "Nama container yang ingin dihentikan: " app_name
     if [ -z "$app_name" ]; then
-        echo "Nama aplikasi tidak boleh kosong."
+        echo -e "${RED}Nama tidak boleh kosong!${NC}"
         return
     fi
-    docker stop $app_name
+    docker stop "$app_name" && echo -e "${YELLOW}[!] ${app_name} dihentikan.${NC}"
 }
 
+#Fungsi Status Aplikasi
 statusAplikasi() {
-    # read -p "Masukkan nama aplikasi yang ingin dicek status: " app_name
-    # if [ -z "$app_name" ]; then
-    #     echo "Nama aplikasi tidak boleh kosong."
-    #     return
-    # fi
-    # docker ps -a | grep $app_name
-    read -p "Apakah anda ingin menampilkan semua aplikasi aplikasi yang sedang berjalan??(y/n)" balas
-    if [[ $balas == "y"|"Y" ]]; then
+    read -p "Tampilkan semua container yang berjalan? (y/n): " jawab
+    if [[ "$jawab" =~ ^[Yy]$ ]]; then
         docker ps
-        elif [[ $balas == "n"|"N" ]]; then
-        read -p "Masukkan nama aplikasi yang ingin dicek...: " app_name
-        if [ -z "$app_name" ]; then
-            echo "Nama aplikasi tidak boleh kosong."
-            return
-        fi
-        docker ps -a | grep $app_name
+    elif [[ "$jawab" =~ ^[Nn]$ ]]; then
+        read -p "Masukkan nama container: " app_name
+        docker ps -a | grep "$app_name" || echo -e "${RED}Container ${app_name} tidak ditemukan.${NC}"
     else
-        echo "Pilihan tidak valid. Silakan coba lagi."
+        echo -e "${RED}Pilihan tidak valid!${NC}"
     fi
-    echo -e "${GREEN}[+] Status aplikasi ditampilkan.${NC}"
 }
 
+#Fungsi Hapus Aplikasi
 hapusAplikasi() {
-    read -p "Masukkan nama aplikasi yang ingin dihapus: " app_name
+    read -p "Nama container yang ingin dihapus: " app_name
     if [ -z "$app_name" ]; then
-        echo "Nama aplikasi tidak boleh kosong."
+        echo -e "${RED}Nama tidak boleh kosong!${NC}"
         return
     fi
-    docker stop $app_name
-    docker rm $app_name
+    docker stop "$app_name" 2>/dev/null || true
+    docker rm "$app_name" && echo -e "${GREEN}[+] ${app_name} dihapus.${NC}"
 }
 
+#Fungsi Tambah Aplikasi Baru
 tambahAplikasi() {
-    read -p "Silahkan masukkan docker image yang ingin ditambahkan: " docker_image
-    read -p "Silahkan masukkan port yang ingin digunakan (host_port): " port
-    read -p "Silahkan masukkan nama untuk container: " name
+    read -p "Docker image (e.g. nginx:latest): " docker_image
+    read -p "Port host (e.g. 8081): " port
+    read -p "Nama container: " name
 
     if [[ -z "$docker_image" || -z "$port" || -z "$name" ]]; then
-        echo "Semua input harus diisi!"
-        return 1
+        echo -e "${RED}Semua input wajib diisi!${NC}"
+        return
     fi
 
-    docker run -d -p "$port":80 --name "$name" "$docker_image"
+    docker run -d -p "${port}:80" --name "${name}" "${docker_image}"
+    echo -e "${GREEN}[+] ${name} berjalan di port ${port}.${NC}"
 }
 
-
+#Fungsi Dokumentasi
 dokumentasi() {
-    echo "Sementara ini masih kosong"
+    cat <<-EOF
+    Dokumentasi singkat:
+    - DVWA:      http://localhost:80
+    - bWAPP:     http://localhost:80
+    - JuiceShop: http://localhost:3000
+    - WebGoat:   http://localhost:8080
+
+    Repo: https://github.com/shooterman666/vulnlabsetup
+EOF
 }
 
-
-#program utama
-# Warna teks
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-CYAN='\033[0;36m'
-YELLOW='\033[1;33m'
-NC='\033[0m' # No Color
-
-# Clear terminal
+#Program Utama
 clear
-
-# Header CLI
 echo -e "${CYAN}"
 echo "==========================================="
 echo "      🚀 Deploy Vulnerable Web Apps       "
@@ -229,15 +206,15 @@ echo "  - WebGoat"
 echo ""
 sleep 1
 
-#menampilkan menu
+check_docker
 
 while true; do
-    check_docker "$(detect_distro)"
-    pilihan=""
+    echo
     menu
-    read -p "Masukkan menu: " pilihan
+    read -p "Masukkan pilihan [1-8]: " pilihan
+    echo
 
-    case $pilihan in
+    case "$pilihan" in
         1) webInstall ;;
         2) jalankanAplikasi ;;
         3) hentikanAplikasi ;;
@@ -249,7 +226,6 @@ while true; do
         *) echo -e "${RED}Pilihan tidak valid! Silakan coba lagi.${NC}" ;;
     esac
 
-    echo ""
     read -p "Tekan Enter untuk kembali ke menu..."
     clear
 done
