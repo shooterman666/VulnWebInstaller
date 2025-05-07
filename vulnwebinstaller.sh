@@ -134,7 +134,7 @@ hentikanAplikasi() {
 statusAplikasi() {
     read -p "Tampilkan semua container yang berjalan? (y/n): " jawab
     if [[ "$jawab" =~ ^[Yy]$ ]]; then
-        docker ps
+        docker ps -a
     elif [[ "$jawab" =~ ^[Nn]$ ]]; then
         read -p "Masukkan nama container: " app_name
         docker ps -a | grep "$app_name" || echo -e "${RED}Container ${app_name} tidak ditemukan.${NC}"
