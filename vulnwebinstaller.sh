@@ -232,6 +232,7 @@ sleep 1
 #menampilkan menu
 
 while true; do
+    check_docker "$(detect_distro)"
     pilihan=""
     menu
     read -p "Masukkan menu: " pilihan
